@@ -4,9 +4,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { WavePlayer } from "@/components/WavePlayer";
 import type { GeneratePodcastRequest, GenerationProgress, Speaker } from "@/lib/types";
 import { Download, Play, Radio, RotateCcw, Wand2 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useState } from "react";
 
 interface GeneratePanelProps {
   script: string;
@@ -28,7 +29,7 @@ export function GeneratePanel({ script, speakers, apiKeys, isReady }: GeneratePa
     percent: 0,
   });
   const [history, setHistory] = useState<PodcastEntry[]>([]);
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const [activeHistoryUrl, setActiveHistoryUrl] = useState<string | null>(null);
 
   async function generate() {
     if (!isReady) return;
@@ -73,13 +74,6 @@ export function GeneratePanel({ script, speakers, apiKeys, isReady }: GeneratePa
         ]);
       }
 
-      // Auto-play
-      setTimeout(() => {
-        if (audioRef.current) {
-          audioRef.current.src = data.audioUrl;
-          audioRef.current.play().catch(() => undefined);
-        }
-      }, 300);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
       setProgress({ status: "error", message, percent: 0, error: message });
@@ -88,10 +82,7 @@ export function GeneratePanel({ script, speakers, apiKeys, isReady }: GeneratePa
 
   function reset() {
     setProgress({ status: "idle", message: "", percent: 0 });
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.src = "";
-    }
+    setActiveHistoryUrl(null);
   }
 
   const isGenerating = ["parsing", "synthesising", "mixing"].includes(progress.status);
@@ -157,17 +148,7 @@ export function GeneratePanel({ script, speakers, apiKeys, isReady }: GeneratePa
                 </div>
 
                 {/* Audio player */}
-                <div className="rounded-xl bg-background border p-4 space-y-3">
-                  <audio
-                    ref={audioRef}
-                    controls
-                    className="w-full"
-                    src={progress.audioUrl}
-                    preload="metadata"
-                  >
-                    <track kind="captions" />
-                  </audio>
-                </div>
+                <WavePlayer audioUrl={progress.audioUrl} autoPlay />
 
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" onClick={reset} className="flex-1">
@@ -215,45 +196,40 @@ export function GeneratePanel({ script, speakers, apiKeys, isReady }: GeneratePa
           </CardHeader>
           <CardContent className="space-y-2">
             {history.map((entry, idx) => (
-              <div
-                key={entry.id}
-                className="flex items-center justify-between gap-3 rounded-lg border p-3 bg-muted/30"
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <Badge variant="secondary" className="text-xs shrink-0">
-                    #{history.length - idx}
-                  </Badge>
-                  <span className="text-xs text-muted-foreground truncate">
-                    {new Date(entry.createdAt).toLocaleTimeString()}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (audioRef.current) {
-                        audioRef.current.src = entry.audioUrl;
-                        audioRef.current.play().catch(() => undefined);
-                        setProgress((p) => ({
-                          ...p,
-                          status: "done",
-                          audioUrl: entry.audioUrl,
-                          podcastId: entry.id,
-                        }));
+              <div key={entry.id} className="space-y-2">
+                <div className="flex items-center justify-between gap-3 rounded-lg border p-3 bg-muted/30">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Badge variant="secondary" className="text-xs shrink-0">
+                      #{history.length - idx}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground truncate">
+                      {new Date(entry.createdAt).toLocaleTimeString()}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setActiveHistoryUrl((prev) =>
+                          prev === entry.audioUrl ? null : entry.audioUrl,
+                        )
                       }
-                    }}
-                    className="text-xs text-primary hover:underline"
-                  >
-                    Play
-                  </button>
-                  <a
-                    href={entry.audioUrl}
-                    download={`kakoo-podcast-${entry.id.slice(0, 8)}.mp3`}
-                    className="text-xs text-muted-foreground hover:text-foreground"
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                  </a>
+                      className="text-xs text-primary hover:underline"
+                    >
+                      {activeHistoryUrl === entry.audioUrl ? "Close" : "Play"}
+                    </button>
+                    <a
+                      href={entry.audioUrl}
+                      download={`kakoo-podcast-${entry.id.slice(0, 8)}.mp3`}
+                      className="text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                    </a>
+                  </div>
                 </div>
+                {activeHistoryUrl === entry.audioUrl && (
+                  <WavePlayer audioUrl={entry.audioUrl} autoPlay />
+                )}
               </div>
             ))}
           </CardContent>
