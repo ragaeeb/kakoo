@@ -40,5 +40,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Generated audio output (large binary files)
-/public/output/
+# Generated audio output (large binary files) — keep the .gitkeep placeholder
+/public/output/*
+!/public/output/.gitkeep

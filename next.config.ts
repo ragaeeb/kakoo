@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
   // Next.js App Router API routes run in Node.js runtime by default.
   serverExternalPackages: ["fluent-ffmpeg"],
 
-  // Increase the body size limit for API routes (audio files can be large)
+  // SSE requires no response buffering — experimental flag for future use
   experimental: {},
 };
 

@@ -1,37 +1,132 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Kakoo — Multi-Speaker TTS Podcast Generator
 
-## Getting Started
+Kakoo turns a plain-text script into a fully mixed podcast MP3. Write your script with speaker labels, assign a TTS voice to each speaker, and Kakoo synthesises every line in parallel, then mixes them into a single audio file — including overlapping dialogue.
 
-First, run the development server:
+---
+
+## Prerequisites
+
+| Requirement | Notes |
+|---|---|
+| **Node.js 20+** | Required for the Next.js 16 app |
+| **ffmpeg** | Required for audio mixing and speed adjustment |
+| **macOS** *(optional)* | Enables the built-in `say` TTS engine |
+| **Dia server** *(optional)* | Local open-source multi-speaker TTS |
+
+### Install ffmpeg
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# macOS
+brew install ffmpeg
+
+# Ubuntu / Debian
+apt install ffmpeg
+
+# Windows (via Chocolatey)
+choco install ffmpeg
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Quick Start
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+# 1. Install dependencies
+npm install
 
-## Learn More
+# 2. Create environment file
+cp .env.local.example .env.local
+# Edit .env.local and add your API keys
 
-To learn more about Next.js, take a look at the following resources:
+# 3. Start the development server
+npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## .env.local Template
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```env
+# Google AI Studio API key (for Gemini 2.5 TTS)
+GOOGLE_AI_API_KEY=your_key_here
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+# ElevenLabs API key
+ELEVENLABS_API_KEY=your_key_here
 
+# Dia TTS server URL (optional — for local open-source TTS)
+# DIA_API_URL=http://localhost:7860
+```
+
+> **Tip**: API keys can also be entered in the ⚙ Settings modal in the UI. They are encrypted with AES-GCM and stored in your browser's `localStorage`. Server-side environment variables always take priority over browser-stored keys.
+
+---
+
+## Script Format
+
+```
+ALICE: Welcome to the show!
+BOB: Thanks for having me.
+ALICE: [overlaps] Let's dive right in.
+BOB: [overlap 1.5s] Absolutely, let's go!
+# This is a comment — ignored by the parser
+```
+
+**Rules:**
+- Speaker labels must be **UPPERCASE** (letters, digits, hyphens, underscores).
+- Labels are followed by a colon and optional whitespace: `ALICE: text` or `ALICE:text`.
+- `[overlaps]` / `[overlap]` — this line starts 0.5 s before the previous clip ends.
+- `[overlap 1.5s]` — custom overlap offset in seconds.
+- Lines starting with `#` or `//` are comments.
+
+---
+
+## Deployment
+
+### Vercel
+
+Vercel's serverless functions do not include `ffmpeg` by default. Options:
+
+1. Use the [`@vercel/ffmpeg`](https://vercel.com/docs/functions/runtimes/node-js/ffmpeg) layer (experimental).
+2. Use a third-party ffmpeg binary package like [`ffmpeg-static`](https://www.npmjs.com/package/ffmpeg-static).
+
+Set API keys as **environment variables** in the Vercel dashboard — do not rely on browser-stored keys in production.
+
+### Railway / Fly.io (Recommended)
+
+Railway and Fly.io support full filesystem access and custom Docker images, making them the easiest deployment targets for Kakoo:
+
+```dockerfile
+FROM node:20-alpine
+RUN apk add --no-cache ffmpeg
+WORKDIR /app
+COPY . .
+RUN npm ci && npm run build
+CMD ["npm", "start"]
+```
+
+### Cloudflare Workers
+
+Not supported — Cloudflare Workers have no filesystem access and cannot run `ffmpeg`.
+
+---
+
+## Architecture
+
+When you click **Generate**, the browser sends a `POST /api/generate` request and opens a **Server-Sent Events** stream. The server emits `progress` events as each TTS line is synthesised (with the speaker name and line number), then a `mixing` event when ffmpeg starts, and finally a `done` event with the audio URL. The client updates the progress bar and log in real time. Individual clip files are deleted after mixing; only the final `podcast.mp3` is kept in `public/output/<jobId>/`.
+
+---
+
+## Development
+
+```bash
+# Type-check
+npx tsc --noEmit
+
+# Lint + format
+npm run check
+
+# Build
+npm run build
+```

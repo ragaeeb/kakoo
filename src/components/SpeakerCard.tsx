@@ -20,10 +20,9 @@ import { Mic, Trash2, Volume2 } from "lucide-react";
 
 interface SpeakerCardProps {
   speaker: Speaker;
-  apiKeys: Record<string, string>;
+  index: number;
   onChange: (updated: Speaker) => void;
   onDelete?: () => void;
-  onApiKeyChange: (platformId: string, key: string) => void;
   canDelete: boolean;
 }
 
@@ -46,23 +45,34 @@ const SPEAKER_COLORS = [
     border: "border-amber-300 dark:border-amber-700",
     dot: "bg-amber-500",
   },
+  {
+    bg: "bg-sky-100 dark:bg-sky-900/30",
+    text: "text-sky-700 dark:text-sky-300",
+    border: "border-sky-300 dark:border-sky-700",
+    dot: "bg-sky-500",
+  },
+  {
+    bg: "bg-rose-100 dark:bg-rose-900/30",
+    text: "text-rose-700 dark:text-rose-300",
+    border: "border-rose-300 dark:border-rose-700",
+    dot: "bg-rose-500",
+  },
+  {
+    bg: "bg-teal-100 dark:bg-teal-900/30",
+    text: "text-teal-700 dark:text-teal-300",
+    border: "border-teal-300 dark:border-teal-700",
+    dot: "bg-teal-500",
+  },
 ];
 
 export function getSpeakerColorClasses(index: number) {
   return SPEAKER_COLORS[index % SPEAKER_COLORS.length];
 }
 
-export function SpeakerCard({
-  speaker,
-  apiKeys,
-  onChange,
-  onDelete,
-  onApiKeyChange,
-  canDelete,
-}: SpeakerCardProps) {
+export function SpeakerCard({ speaker, index, onChange, onDelete, canDelete }: SpeakerCardProps) {
   const platform = PLATFORMS.find((p) => p.id === speaker.platformId);
-  const speakerIndex = ["speaker-0", "speaker-1", "speaker-2"].indexOf(speaker.id);
-  const colors = getSpeakerColorClasses(speakerIndex);
+  // Use the passed index directly — no hardcoded ID lookup
+  const colors = getSpeakerColorClasses(index);
 
   function update<K extends keyof Speaker>(key: K, value: Speaker[K]) {
     onChange({ ...speaker, [key]: value });
@@ -76,7 +86,7 @@ export function SpeakerCard({
             <div className={`h-3 w-3 rounded-full ${colors.dot}`} />
             <div className="flex items-center gap-2">
               <Mic className={`h-4 w-4 ${colors.text}`} />
-              <span className={`text-sm font-semibold ${colors.text}`}>Speaker</span>
+              <span className={`text-sm font-semibold ${colors.text}`}>Speaker {index + 1}</span>
             </div>
           </div>
           {canDelete && onDelete && (
@@ -166,25 +176,6 @@ export function SpeakerCard({
             </SelectContent>
           </Select>
         </div>
-
-        {/* API Key field (if required) */}
-        {platform?.requiresApiKey && (
-          <div className="space-y-1.5">
-            <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-              {platform.apiKeyLabel ?? "API Key"}
-            </Label>
-            <Input
-              type="password"
-              value={apiKeys[speaker.platformId] ?? ""}
-              onChange={(e) => onApiKeyChange(speaker.platformId, e.target.value)}
-              placeholder={`${platform.apiKeyEnvVar ?? "API_KEY"} or paste here`}
-              autoComplete="off"
-            />
-            <p className="text-[11px] text-muted-foreground">
-              Or set <code className="font-mono">{platform.apiKeyEnvVar}</code> in .env.local
-            </p>
-          </div>
-        )}
 
         {/* Voice selector */}
         {platform && platform.voices.length > 0 && (

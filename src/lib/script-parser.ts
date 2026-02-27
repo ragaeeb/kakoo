@@ -10,22 +10,30 @@ import type { ScriptLine } from "./types";
 //
 // Rules:
 //   • Speaker labels are UPPERCASE words (letters, digits, hyphens, underscores)
-//     followed by a colon and a space.
+//     followed by a colon and optional whitespace.
 //   • [overlaps] / [overlap] / [overlap Xs] annotation appears right after the
 //     colon+space and before the actual text.
 //   • Lines starting with # or // are comments and are ignored.
 //   • Empty lines are ignored.
+//   • Unrecognised non-empty lines are collected as warnings.
 // ---------------------------------------------------------------------------
 
-const SPEAKER_RE = /^([A-Z][A-Z0-9_\-]*):\s+(.+)$/;
+// \s* (zero or more spaces) so `BOB:text` and `BOB: text` both match.
+const SPEAKER_RE = /^([A-Z][A-Z0-9_\-]*):\s*(.+)$/;
 const OVERLAP_RE = /^\[overlap(?:s)?(?:\s+([\d.]+)s?)?\]\s*/i;
 
-export function parseScript(raw: string): ScriptLine[] {
-  const lines = raw.split("\n");
+export interface ParseScriptResult {
+  lines: ScriptLine[];
+  warnings: string[];
+}
+
+export function parseScript(raw: string): ParseScriptResult {
+  const rawLines = raw.split("\n");
   const result: ScriptLine[] = [];
+  const warnings: string[] = [];
   let index = 0;
 
-  for (const rawLine of lines) {
+  for (const rawLine of rawLines) {
     const trimmed = rawLine.trim();
 
     // Skip empty lines and comments
@@ -35,12 +43,14 @@ export function parseScript(raw: string): ScriptLine[] {
 
     const match = SPEAKER_RE.exec(trimmed);
     if (!match) {
-      // Not a speaker line – skip silently (could be stage directions etc.)
+      // Collect unrecognised non-empty lines as warnings so callers can
+      // surface them to the user (e.g. `bob: hello` with lowercase label).
+      warnings.push(trimmed);
       continue;
     }
 
     const speakerLabel = match[1];
-    let rest = match[2];
+    let rest = match[2].trim();
 
     // Detect overlap annotation
     let overlaps = false;
@@ -66,27 +76,30 @@ export function parseScript(raw: string): ScriptLine[] {
     }
   }
 
-  return result;
+  return { lines: result, warnings };
 }
 
 /**
- * Extract all unique speaker labels from a raw script string.
+ * Extract all unique speaker labels from already-parsed ScriptLines.
  * Returns them in the order they first appear.
  */
-export function extractSpeakers(raw: string): string[] {
-  const lines = raw.split("\n");
+export function extractSpeakersFromLines(lines: ScriptLine[]): string[] {
   const seen = new Set<string>();
   const order: string[] = [];
-
-  for (const rawLine of lines) {
-    const trimmed = rawLine.trim();
-    if (!trimmed || trimmed.startsWith("#") || trimmed.startsWith("//")) continue;
-    const match = SPEAKER_RE.exec(trimmed);
-    if (match && !seen.has(match[1])) {
-      seen.add(match[1]);
-      order.push(match[1]);
+  for (const line of lines) {
+    if (!seen.has(line.speakerLabel)) {
+      seen.add(line.speakerLabel);
+      order.push(line.speakerLabel);
     }
   }
-
   return order;
+}
+
+/**
+ * @deprecated Use parseScript + extractSpeakersFromLines instead.
+ * Kept for backwards compatibility.
+ */
+export function extractSpeakers(raw: string): string[] {
+  const { lines } = parseScript(raw);
+  return extractSpeakersFromLines(lines);
 }

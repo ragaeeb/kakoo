@@ -4,13 +4,13 @@
 // ---------------------------------------------------------------------------
 
 /** Maximum number of speakers configurable at once */
-export const MAX_SPEAKERS = 3;
+export const MAX_SPEAKERS = 6;
 
 // ---------------------------------------------------------------------------
 // TTS Platforms
 // ---------------------------------------------------------------------------
 
-export type TTSPlatformId = "google-gemini" | "elevenlabs" | "macos-say" | "local-python"; // placeholder for future local Python TTS
+export type TTSPlatformId = "google-gemini" | "elevenlabs" | "macos-say" | "local-python" | "dia";
 
 export interface TTSPlatform {
   id: TTSPlatformId;

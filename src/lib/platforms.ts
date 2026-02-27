@@ -81,12 +81,29 @@ export const PLATFORMS: TTSPlatform[] = [
   },
 
   // -------------------------------------------------------------------------
-  // Local Python TTS – placeholder for future support
+  // Dia – Local open-source multi-speaker TTS (Nari Labs)
+  // Available when DIA_API_URL is set, or in development mode.
+  // -------------------------------------------------------------------------
+  {
+    id: "dia",
+    name: "Dia (Local)",
+    description: "Open-source multi-speaker TTS – requires local Dia server",
+    requiresApiKey: false,
+    available:
+      process.env.DIA_API_URL !== undefined || process.env.NODE_ENV === "development",
+    voices: [
+      { id: "S1", name: "Speaker 1" },
+      { id: "S2", name: "Speaker 2" },
+    ],
+  },
+
+  // -------------------------------------------------------------------------
+  // Local Python TTS – legacy placeholder (superseded by Dia)
   // -------------------------------------------------------------------------
   {
     id: "local-python",
     name: "Local Python TTS",
-    description: "Run a local Python TTS server (coming soon)",
+    description: "Run a local Python TTS server (use Dia instead)",
     requiresApiKey: false,
     available: false,
     voices: [],

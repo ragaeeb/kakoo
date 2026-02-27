@@ -1,31 +1,40 @@
 "use client";
 
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { GeneratePanel } from "@/components/GeneratePanel";
 import { ScriptEditor } from "@/components/ScriptEditor";
+import { SettingsModal } from "@/components/SettingsModal";
 import { SpeakerCard } from "@/components/SpeakerCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { KeyStore } from "@/lib/key-store";
 import { PLATFORMS } from "@/lib/platforms";
 import { MAX_SPEAKERS } from "@/lib/types";
 import type { Speaker } from "@/lib/types";
 import { Mic, Plus, Radio } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 // ---------------------------------------------------------------------------
 // Default speaker factory
 // ---------------------------------------------------------------------------
 function createDefaultSpeaker(index: number): Speaker {
-  const labels = ["ALICE", "BOB", "CAROL"];
-  const names = ["Alice", "Bob", "Carol"];
+  // Use friendly names for the first two speakers; generic labels beyond that
+  const friendlyLabels = ["ALICE", "BOB"];
+  const friendlyNames = ["Alice", "Bob"];
+
+  const label = index < friendlyLabels.length ? friendlyLabels[index] : `SPEAKER${index + 1}`;
+  const displayName =
+    index < friendlyNames.length ? friendlyNames[index] : `Speaker ${index + 1}`;
+
   const defaultPlatform = PLATFORMS.find((p) => p.available);
   const defaultVoice = defaultPlatform?.voices[index % (defaultPlatform?.voices.length ?? 1)];
 
   return {
     id: `speaker-${index}`,
-    label: labels[index] ?? `SPEAKER${index + 1}`,
-    displayName: names[index] ?? `Speaker ${index + 1}`,
-    color: ["violet", "emerald", "amber"][index] ?? "slate",
+    label,
+    displayName,
+    color: ["violet", "emerald", "amber", "sky", "rose", "teal"][index] ?? "slate",
     platformId: defaultPlatform?.id ?? "google-gemini",
     voiceId: defaultVoice?.id ?? "",
     speed: 1.0,
@@ -42,8 +51,21 @@ export default function Home() {
   const [detectedSpeakers, setDetectedSpeakers] = useState<string[]>([]);
   const [speakers, setSpeakers] = useState<Speaker[]>([createDefaultSpeaker(0)]);
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
+  // Track which speakers the user has manually edited (by id) so we don't
+  // auto-sync their labels when the script changes.
+  const userEditedSpeakers = useRef<Set<string>>(new Set());
 
-  // Sync detected speaker labels into speaker configs automatically
+  // Load API keys from KeyStore on mount
+  useEffect(() => {
+    KeyStore.load().then((saved) => {
+      if (Object.keys(saved).length > 0) {
+        setApiKeys(saved);
+      }
+    });
+  }, []);
+
+  // Sync detected speaker labels into speaker configs automatically.
+  // Only syncs speakers that the user has NOT manually edited.
   const handleSpeakersDetected = useCallback((detected: string[]) => {
     setDetectedSpeakers(detected);
 
@@ -53,10 +75,13 @@ export default function Home() {
 
       capped.forEach((label, i) => {
         if (!next[i]) {
+          // New speaker slot — create with defaults
           next[i] = createDefaultSpeaker(i);
         }
-        // Sync label if it's still the default or matches positionally
-        if (next[i].label === ["ALICE", "BOB", "CAROL"][i] || next[i].label === `SPEAKER${i + 1}`) {
+
+        // Only auto-sync label if the user hasn't manually edited this speaker
+        if (!userEditedSpeakers.current.has(next[i].id)) {
+          // Only update the label field — preserve all other settings
           next[i] = { ...next[i], label };
         }
       });
@@ -77,12 +102,15 @@ export default function Home() {
   }
 
   function updateSpeaker(index: number, updated: Speaker) {
+    // If the label changed, mark this speaker as user-edited
+    const current = speakers[index];
+    if (current && updated.label !== current.label) {
+      userEditedSpeakers.current.add(updated.id);
+    }
     setSpeakers((prev) => prev.map((s, i) => (i === index ? updated : s)));
   }
 
-  function updateApiKey(platformId: string, key: string) {
-    setApiKeys((prev) => ({ ...prev, [platformId]: key }));
-  }
+  const hasApiKeys = Object.values(apiKeys).some((v) => v.trim().length > 0);
 
   const isReady =
     script.trim().length > 0 &&
@@ -94,7 +122,7 @@ export default function Home() {
       {/* ------------------------------------------------------------------ */}
       {/* Header */}
       {/* ------------------------------------------------------------------ */}
-      <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-md">
+      <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-md overflow-hidden">
         <div className="mx-auto max-w-7xl flex items-center justify-between px-4 h-14">
           <div className="flex items-center gap-3">
             <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-primary text-primary-foreground">
@@ -107,9 +135,12 @@ export default function Home() {
               </Badge>
             </div>
           </div>
-          <p className="hidden md:block text-xs text-muted-foreground">
-            Multi-speaker TTS Podcast Generator
-          </p>
+          <div className="flex items-center gap-3">
+            <p className="hidden md:block text-xs text-muted-foreground">
+              Multi-speaker TTS Podcast Generator
+            </p>
+            <SettingsModal onKeysChange={setApiKeys} hasKeys={hasApiKeys} />
+          </div>
         </div>
       </header>
 
@@ -123,12 +154,14 @@ export default function Home() {
           {/* ---------------------------------------------------------------- */}
           <div className="space-y-8">
             {/* Script editor */}
-            <ScriptEditor
-              value={script}
-              onChange={setScript}
-              detectedSpeakers={detectedSpeakers}
-              onSpeakersDetected={handleSpeakersDetected}
-            />
+            <ErrorBoundary label="Script Editor">
+              <ScriptEditor
+                value={script}
+                onChange={setScript}
+                detectedSpeakers={detectedSpeakers}
+                onSpeakersDetected={handleSpeakersDetected}
+              />
+            </ErrorBoundary>
 
             {/* Speakers section */}
             <div className="space-y-4">
@@ -152,34 +185,38 @@ export default function Home() {
                 </Button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {speakers.map((speaker, index) => (
-                  <SpeakerCard
-                    key={speaker.id}
-                    speaker={speaker}
-                    apiKeys={apiKeys}
-                    onChange={(updated) => updateSpeaker(index, updated)}
-                    onDelete={() => removeSpeaker(index)}
-                    onApiKeyChange={updateApiKey}
-                    canDelete={speakers.length > 1}
-                  />
-                ))}
-              </div>
+              <ErrorBoundary label="Speaker Grid">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {speakers.map((speaker, index) => (
+                    <SpeakerCard
+                      key={speaker.id}
+                      speaker={speaker}
+                      index={index}
+                      onChange={(updated) => updateSpeaker(index, updated)}
+                      onDelete={() => removeSpeaker(index)}
+                      canDelete={speakers.length > 1}
+                    />
+                  ))}
+                </div>
+              </ErrorBoundary>
 
-              {/* Platform note */}
-              <div className="rounded-lg border bg-muted/30 p-4 text-xs text-muted-foreground space-y-1">
-                <p className="font-medium text-foreground">API Keys</p>
-                <p>
-                  API keys entered above are sent only to your own Next.js backend and used
-                  server-side to call the TTS provider. They are never stored permanently.
-                  Alternatively, set them in{" "}
-                  <code className="font-mono bg-muted px-1 rounded">.env.local</code>:
-                </p>
-                <ul className="list-disc list-inside space-y-0.5 font-mono">
-                  <li>GOOGLE_AI_API_KEY</li>
-                  <li>ELEVENLABS_API_KEY</li>
-                </ul>
-              </div>
+              {/* API Keys note */}
+              <p className="text-xs text-muted-foreground">
+                Manage API keys in{" "}
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Trigger settings modal — find the gear button and click it
+                    const btn = document.querySelector<HTMLButtonElement>(
+                      '[aria-label="Open settings"]',
+                    );
+                    btn?.click();
+                  }}
+                  className="text-primary hover:underline"
+                >
+                  ⚙ Settings
+                </button>
+              </p>
             </div>
           </div>
 
@@ -200,12 +237,14 @@ export default function Home() {
 
             <Separator />
 
-            <GeneratePanel
-              script={script}
-              speakers={speakers}
-              apiKeys={apiKeys}
-              isReady={isReady}
-            />
+            <ErrorBoundary label="Generate Panel">
+              <GeneratePanel
+                script={script}
+                speakers={speakers}
+                apiKeys={apiKeys}
+                isReady={isReady}
+              />
+            </ErrorBoundary>
           </div>
         </div>
       </main>

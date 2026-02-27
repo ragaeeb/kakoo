@@ -1,13 +1,16 @@
-import { exec } from "node:child_process";
+import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // ---------------------------------------------------------------------------
 // macOS native TTS via the `say` command
 // Output is AIFF then converted to WAV via `afconvert`
+//
+// Security: Uses execFile with argument arrays — never string interpolation —
+// to prevent shell injection from user-supplied text or voice IDs.
 // ---------------------------------------------------------------------------
 
 export async function synthesiseMacOSSay(opts: {
@@ -31,14 +34,11 @@ export async function synthesiseMacOSSay(opts: {
 
   const aiffPath = outputPath.replace(/\.[^.]+$/, ".aiff");
 
-  // Escape text for shell
-  const escaped = text.replace(/'/g, "'\\''");
-  const cmd = `say -v "${voiceId}" -r ${wpm} -o "${aiffPath}" '${escaped}'`;
-
-  await execAsync(cmd);
+  // Use execFile with argument array — no shell interpolation
+  await execFileAsync("say", ["-v", voiceId, "-r", String(wpm), "-o", aiffPath, text]);
 
   // Convert AIFF → WAV using afconvert (macOS built-in)
-  await execAsync(`afconvert -f WAVE -d LEI16@44100 "${aiffPath}" "${outputPath}"`);
+  await execFileAsync("afconvert", ["-f", "WAVE", "-d", "LEI16@44100", aiffPath, outputPath]);
 
   // Clean up the temporary AIFF
   await fs.unlink(aiffPath).catch(() => undefined);

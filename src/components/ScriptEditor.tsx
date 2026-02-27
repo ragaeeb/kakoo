@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { extractSpeakers, parseScript } from "@/lib/script-parser";
+import { extractSpeakersFromLines, parseScript } from "@/lib/script-parser";
 import type { ScriptLine } from "@/lib/types";
 import { AlertCircle, ChevronRight, FileText, Info } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -35,6 +35,7 @@ export function ScriptEditor({
   onSpeakersDetected,
 }: ScriptEditorProps) {
   const [parsedLines, setParsedLines] = useState<ScriptLine[]>([]);
+  const [warnings, setWarnings] = useState<string[]>([]);
   const [showPreview, setShowPreview] = useState(false);
   const [lineCount, setLineCount] = useState(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -42,9 +43,11 @@ export function ScriptEditor({
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      const lines = parseScript(value);
-      const speakers = extractSpeakers(value);
+      // Parse once and derive speakers from the result — no double-parse
+      const { lines, warnings: w } = parseScript(value);
+      const speakers = extractSpeakersFromLines(lines);
       setParsedLines(lines);
+      setWarnings(w);
       setLineCount(lines.length);
       onSpeakersDetected(speakers);
     }, 300);
@@ -150,13 +153,37 @@ export function ScriptEditor({
       )}
 
       {/* Unknown speaker warning */}
-      {detectedSpeakers.length > 3 && (
+      {detectedSpeakers.length > 6 && (
         <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 text-xs">
           <AlertCircle className="h-4 w-4" />
           <span>
-            More than 3 speakers detected. Currently only the first 3 can be configured (limit is
-            configurable).
+            More than 6 speakers detected. Currently only the first 6 can be configured.
           </span>
+        </div>
+      )}
+
+      {/* Parser warnings for unrecognised lines */}
+      {warnings.length > 0 && (
+        <div className="flex items-start gap-2 text-amber-600 dark:text-amber-400 text-xs rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 p-3">
+          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="font-medium">
+              {warnings.length} unrecognised line{warnings.length !== 1 ? "s" : ""} (will be
+              skipped):
+            </p>
+            <ul className="list-disc list-inside space-y-0.5 font-mono">
+              {warnings.slice(0, 5).map((w, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: stable warning list
+                <li key={i} className="truncate max-w-xs">
+                  {w}
+                </li>
+              ))}
+              {warnings.length > 5 && <li>…and {warnings.length - 5} more</li>}
+            </ul>
+            <p className="text-[11px] opacity-75">
+              Tip: Speaker labels must be UPPERCASE. Use # for comments.
+            </p>
+          </div>
         </div>
       )}
 

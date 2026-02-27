@@ -29,9 +29,34 @@ export function WavePlayer({ audioUrl, autoPlay = false }: WavePlayerProps) {
     return `${m}:${s.toString().padStart(2, "0")}`;
   }
 
-  // Initialise WaveSurfer once the container is mounted
+  // Create a fresh WaveSurfer instance whenever audioUrl changes.
+  // This avoids the AbortError caused by React StrictMode double-invoking
+  // effects: we never pass `url` to WaveSurfer.create (which would start
+  // fetching immediately), and we always destroy before recreating.
   useEffect(() => {
     if (!containerRef.current) return;
+
+    let destroyed = false;
+
+    // Reset state for the new URL
+    setIsReady(false);
+    setIsLoading(true);
+    setCurrentTime(0);
+    setDuration(0);
+    setIsPlaying(false);
+
+    // Destroy any existing instance first
+    if (wavesurferRef.current) {
+      try {
+        wavesurferRef.current.destroy();
+      } catch (err) {
+        const e = err as Error | null;
+        if (e?.name !== "AbortError") {
+          console.warn("[WavePlayer] destroy error:", e);
+        }
+      }
+      wavesurferRef.current = null;
+    }
 
     const ws = WaveSurfer.create({
       container: containerRef.current,
@@ -45,12 +70,14 @@ export function WavePlayer({ audioUrl, autoPlay = false }: WavePlayerProps) {
       height: 56,
       normalize: true,
       interact: true,
-      url: audioUrl,
+      // Do NOT pass `url` here — load it explicitly below to avoid
+      // AbortError when the component unmounts during the initial fetch.
     });
 
     wavesurferRef.current = ws;
 
     ws.on("ready", (dur) => {
+      if (destroyed) return;
       setDuration(dur);
       setIsReady(true);
       setIsLoading(false);
@@ -59,37 +86,46 @@ export function WavePlayer({ audioUrl, autoPlay = false }: WavePlayerProps) {
       }
     });
 
-    ws.on("play", () => setIsPlaying(true));
-    ws.on("pause", () => setIsPlaying(false));
-    ws.on("finish", () => setIsPlaying(false));
-
-    ws.on("timeupdate", (time) => setCurrentTime(time));
-
-    ws.on("loading", () => setIsLoading(true));
-
+    ws.on("play", () => {
+      if (!destroyed) setIsPlaying(true);
+    });
+    ws.on("pause", () => {
+      if (!destroyed) setIsPlaying(false);
+    });
+    ws.on("finish", () => {
+      if (!destroyed) setIsPlaying(false);
+    });
+    ws.on("timeupdate", (time) => {
+      if (!destroyed) setCurrentTime(time);
+    });
+    ws.on("loading", () => {
+      if (!destroyed) setIsLoading(true);
+    });
     ws.on("error", (err) => {
+      const e = err as Error | null;
+      if (e?.name === "AbortError") return; // suppress expected abort on unmount
       console.error("[WavePlayer] WaveSurfer error:", err);
-      setIsLoading(false);
+      if (!destroyed) setIsLoading(false);
     });
 
-    return () => {
-      ws.destroy();
-      wavesurferRef.current = null;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Reload when audioUrl changes after initial mount
-  useEffect(() => {
-    const ws = wavesurferRef.current;
-    if (!ws) return;
-    setIsReady(false);
-    setIsLoading(true);
-    setCurrentTime(0);
-    setDuration(0);
-    setIsPlaying(false);
+    // Load the audio after attaching all event listeners
     ws.load(audioUrl);
-  }, [audioUrl]);
+
+    return () => {
+      destroyed = true;
+      try {
+        ws.destroy();
+      } catch (err) {
+        const e = err as Error | null;
+        if (e?.name !== "AbortError") {
+          console.warn("[WavePlayer] cleanup destroy error:", e);
+        }
+      }
+      if (wavesurferRef.current === ws) {
+        wavesurferRef.current = null;
+      }
+    };
+  }, [audioUrl, autoPlay]);
 
   function togglePlay() {
     wavesurferRef.current?.playPause();
@@ -148,9 +184,7 @@ export function WavePlayer({ audioUrl, autoPlay = false }: WavePlayerProps) {
 
       {/* Loading indicator */}
       {isLoading && (
-        <p className="text-center text-xs text-muted-foreground animate-pulse">
-          Loading audio…
-        </p>
+        <p className="text-center text-xs text-muted-foreground animate-pulse">Loading audio…</p>
       )}
     </div>
   );
