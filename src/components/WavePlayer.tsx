@@ -21,6 +21,11 @@ export function WavePlayer({ audioUrl, autoPlay = false }: WavePlayerProps) {
   const [isReady, setIsReady] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  function isExpectedMediaError(err: unknown): boolean {
+    if (!(err instanceof Error)) return false;
+    return err.name === "AbortError" || err.name === "NotAllowedError";
+  }
+
   // Format seconds as mm:ss
   function formatTime(seconds: number): string {
     if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
@@ -82,7 +87,11 @@ export function WavePlayer({ audioUrl, autoPlay = false }: WavePlayerProps) {
       setIsReady(true);
       setIsLoading(false);
       if (autoPlay) {
-        ws.play();
+        void ws.play().catch((err) => {
+          if (!isExpectedMediaError(err)) {
+            console.warn("[WavePlayer] autoplay error:", err);
+          }
+        });
       }
     });
 
@@ -109,7 +118,11 @@ export function WavePlayer({ audioUrl, autoPlay = false }: WavePlayerProps) {
     });
 
     // Load the audio after attaching all event listeners
-    ws.load(audioUrl);
+    void Promise.resolve(ws.load(audioUrl)).catch((err) => {
+      if (isExpectedMediaError(err)) return;
+      console.error("[WavePlayer] load error:", err);
+      if (!destroyed) setIsLoading(false);
+    });
 
     return () => {
       destroyed = true;

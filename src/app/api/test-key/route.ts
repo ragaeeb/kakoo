@@ -44,28 +44,6 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ valid: false, error: errMsg });
       }
 
-      case "elevenlabs": {
-        const res = await fetch("https://api.elevenlabs.io/v1/user", {
-          method: "GET",
-          headers: { "xi-api-key": key },
-        });
-        if (res.ok) {
-          return NextResponse.json({ valid: true });
-        }
-        let errMsg = `HTTP ${res.status}`;
-        try {
-          const errJson = (await res.json()) as { detail?: { message?: string } | string };
-          if (typeof errJson.detail === "string") {
-            errMsg = errJson.detail;
-          } else {
-            errMsg = errJson.detail?.message ?? errMsg;
-          }
-        } catch {
-          errMsg = await res.text().catch(() => errMsg);
-        }
-        return NextResponse.json({ valid: false, error: errMsg });
-      }
-
       default:
         return NextResponse.json(
           { valid: false, error: `Unknown platform: ${platform}` },

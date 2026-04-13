@@ -10,7 +10,7 @@ export const MAX_SPEAKERS = 6;
 // TTS Platforms
 // ---------------------------------------------------------------------------
 
-export type TTSPlatformId = "google-gemini" | "elevenlabs" | "macos-say" | "local-python" | "dia";
+export type TTSPlatformId = "google-gemini" | "macos-say";
 
 export interface TTSPlatform {
   id: TTSPlatformId;

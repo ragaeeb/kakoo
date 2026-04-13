@@ -26,7 +26,7 @@ ALICE: [overlaps 1.0s] Exactly! Just like real conversations.
 BOB: So how does Kakoo actually work?
 ALICE: Great question. You write a script with speaker labels, pick a voice for each speaker, and Kakoo handles all the synthesis and mixing.
 BOB: That's pretty impressive. Does it support different TTS engines?
-ALICE: Yes — Google Gemini, ElevenLabs, and even the built-in macOS voices. More coming soon.`;
+ALICE: Yes — Google Gemini and the built-in macOS voices.`;
 
 export function ScriptEditor({
   value,

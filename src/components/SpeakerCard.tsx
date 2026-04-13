@@ -140,9 +140,11 @@ export function SpeakerCard({ speaker, index, onChange, onDelete, canDelete }: S
             onValueChange={(val) => {
               const newPlatform = PLATFORMS.find((p) => p.id === val);
               if (newPlatform) {
-                update("platformId", val as TTSPlatformId);
-                // Reset voice to first available
-                update("voiceId", newPlatform.voices[0]?.id ?? "");
+                onChange({
+                  ...speaker,
+                  platformId: val as TTSPlatformId,
+                  voiceId: newPlatform.voices[0]?.id ?? "",
+                });
               }
             }}
           >

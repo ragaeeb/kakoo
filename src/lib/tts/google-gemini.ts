@@ -1,9 +1,6 @@
-import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { promisify } from "node:util";
-
-const execFileAsync = promisify(execFile);
+import { applyAtempo } from "./audio-utils";
 
 // ---------------------------------------------------------------------------
 // Google AI Studio – Gemini 2.5 Flash TTS
@@ -116,52 +113,6 @@ function parsePcmMimeType(mimeType: string): PcmFormat {
     channels: channelsMatch ? Number.parseInt(channelsMatch[1], 10) : defaults.channels,
     bitDepth: bitDepthMatch ? Number.parseInt(bitDepthMatch[1], 10) : defaults.bitDepth,
   };
-}
-
-// ---------------------------------------------------------------------------
-// Apply speed via ffmpeg atempo filter
-// atempo requires values in [0.5, 2.0]; chain filters for values outside that.
-// ---------------------------------------------------------------------------
-
-async function applyAtempo(wavPath: string, speed: number): Promise<void> {
-  // Clamp to [0.5, 2.0] range (atempo hard limits)
-  const clampedSpeed = Math.max(0.5, Math.min(2.0, speed));
-
-  // Build atempo filter chain. For speed outside [0.5, 2.0] we chain:
-  //   speed=0.25 → atempo=0.5,atempo=0.5
-  //   speed=4.0  → atempo=2.0,atempo=2.0
-  const filters: string[] = [];
-  let remaining = speed;
-
-  if (speed < 0.5) {
-    // Chain multiple atempo=0.5 filters
-    while (remaining < 0.5) {
-      filters.push("atempo=0.5");
-      remaining /= 0.5;
-    }
-    if (Math.abs(remaining - 1.0) > 0.001) {
-      filters.push(`atempo=${remaining.toFixed(4)}`);
-    }
-  } else if (speed > 2.0) {
-    // Chain multiple atempo=2.0 filters
-    while (remaining > 2.0) {
-      filters.push("atempo=2.0");
-      remaining /= 2.0;
-    }
-    if (Math.abs(remaining - 1.0) > 0.001) {
-      filters.push(`atempo=${remaining.toFixed(4)}`);
-    }
-  } else {
-    filters.push(`atempo=${clampedSpeed.toFixed(4)}`);
-  }
-
-  const filterStr = filters.join(",");
-  const tmpPath = `${wavPath}.tmp.wav`;
-
-  await execFileAsync("ffmpeg", ["-y", "-i", wavPath, "-filter:a", filterStr, tmpPath]);
-
-  // Overwrite original with speed-adjusted version
-  await fs.rename(tmpPath, wavPath);
 }
 
 // ---------------------------------------------------------------------------

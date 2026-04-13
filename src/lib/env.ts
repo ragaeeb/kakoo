@@ -8,8 +8,6 @@
 
 export interface KakooEnv {
   GOOGLE_AI_API_KEY: string | undefined;
-  ELEVENLABS_API_KEY: string | undefined;
-  DIA_API_URL: string | undefined;
   NODE_ENV: string;
 }
 
@@ -23,8 +21,6 @@ export interface KakooEnv {
 export function getEnv(): KakooEnv {
   return {
     GOOGLE_AI_API_KEY: process.env.GOOGLE_AI_API_KEY,
-    ELEVENLABS_API_KEY: process.env.ELEVENLABS_API_KEY,
-    DIA_API_URL: process.env.DIA_API_URL,
     NODE_ENV: process.env.NODE_ENV ?? "development",
   };
 }
@@ -39,7 +35,7 @@ export function resolveApiKey(
 ): string {
   const env = getEnv();
   const envVarName = platformEnvVar(platformId);
-  const envKey = envVarName ? (env as Record<string, string | undefined>)[envVarName] : undefined;
+  const envKey = envVarName ? env[envVarName] : undefined;
   return (envKey ?? clientKey ?? "").trim();
 }
 
@@ -47,8 +43,6 @@ function platformEnvVar(platformId: string): keyof KakooEnv | null {
   switch (platformId) {
     case "google-gemini":
       return "GOOGLE_AI_API_KEY";
-    case "elevenlabs":
-      return "ELEVENLABS_API_KEY";
     default:
       return null;
   }

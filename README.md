@@ -11,7 +11,6 @@ Kakoo turns a plain-text script into a fully mixed podcast MP3. Write your scrip
 | **Node.js 20+** | Required for the Next.js 16 app |
 | **ffmpeg** | Required for audio mixing and speed adjustment |
 | **macOS** *(optional)* | Enables the built-in `say` TTS engine |
-| **Dia server** *(optional)* | Local open-source multi-speaker TTS |
 
 ### Install ffmpeg
 
@@ -36,7 +35,7 @@ npm install
 
 # 2. Create environment file
 cp .env.local.example .env.local
-# Edit .env.local and add your API keys
+# Edit .env.local and add your API keys and any local engine paths
 
 # 3. Start the development server
 npm run dev
@@ -51,12 +50,6 @@ Open [http://localhost:3000](http://localhost:3000).
 ```env
 # Google AI Studio API key (for Gemini 2.5 TTS)
 GOOGLE_AI_API_KEY=your_key_here
-
-# ElevenLabs API key
-ELEVENLABS_API_KEY=your_key_here
-
-# Dia TTS server URL (optional — for local open-source TTS)
-# DIA_API_URL=http://localhost:7860
 ```
 
 > **Tip**: API keys can also be entered in the ⚙ Settings modal in the UI. They are encrypted with AES-GCM and stored in your browser's `localStorage`. Server-side environment variables always take priority over browser-stored keys.

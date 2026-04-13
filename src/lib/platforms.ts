@@ -1,5 +1,13 @@
 import type { TTSPlatform } from "./types";
 
+function isMacOS(): boolean {
+  if (typeof window === "undefined") {
+    return process.platform === "darwin";
+  }
+
+  return /Mac|iPhone|iPad|iPod/.test(window.navigator.platform);
+}
+
 // ---------------------------------------------------------------------------
 // Platform registry
 // Keep voices in alphabetical order per platform.
@@ -31,30 +39,6 @@ export const PLATFORMS: TTSPlatform[] = [
   },
 
   // -------------------------------------------------------------------------
-  // ElevenLabs
-  // -------------------------------------------------------------------------
-  {
-    id: "elevenlabs",
-    name: "ElevenLabs",
-    description: "High-quality neural TTS with expressive voices",
-    requiresApiKey: true,
-    apiKeyLabel: "ElevenLabs API Key",
-    apiKeyEnvVar: "ELEVENLABS_API_KEY",
-    available: true,
-    voices: [
-      { id: "21m00Tcm4TlvDq8ikWAM", name: "Rachel", gender: "female" },
-      { id: "AZnzlk1XvdvUeBnXmlld", name: "Domi", gender: "female" },
-      { id: "EXAVITQu4vr4xnSDxMaL", name: "Bella", gender: "female" },
-      { id: "ErXwobaYiN019PkySvjV", name: "Antoni", gender: "male" },
-      { id: "MF3mGyEYCl7XYWbV9V6O", name: "Elli", gender: "female" },
-      { id: "TxGEqnHWrfWFTfGW9XjX", name: "Josh", gender: "male" },
-      { id: "VR6AewLTigWG4xSOukaG", name: "Arnold", gender: "male" },
-      { id: "pNInz6obpgDQGcFmaJgB", name: "Adam", gender: "male" },
-      { id: "yoZ06aMxZJJ28mfd3POQ", name: "Sam", gender: "male" },
-    ],
-  },
-
-  // -------------------------------------------------------------------------
   // macOS native TTS (say command)
   // -------------------------------------------------------------------------
   {
@@ -62,7 +46,7 @@ export const PLATFORMS: TTSPlatform[] = [
     name: "macOS Say (Local)",
     description: "Built-in macOS speech synthesis – no API key required",
     requiresApiKey: false,
-    available: process.platform === "darwin",
+    available: isMacOS(),
     voices: [
       { id: "Alex", name: "Alex", gender: "male", language: "en-US" },
       { id: "Allison", name: "Allison", gender: "female", language: "en-US" },
@@ -80,34 +64,6 @@ export const PLATFORMS: TTSPlatform[] = [
     ],
   },
 
-  // -------------------------------------------------------------------------
-  // Dia – Local open-source multi-speaker TTS (Nari Labs)
-  // Available when DIA_API_URL is set, or in development mode.
-  // -------------------------------------------------------------------------
-  {
-    id: "dia",
-    name: "Dia (Local)",
-    description: "Open-source multi-speaker TTS – requires local Dia server",
-    requiresApiKey: false,
-    available:
-      process.env.DIA_API_URL !== undefined || process.env.NODE_ENV === "development",
-    voices: [
-      { id: "S1", name: "Speaker 1" },
-      { id: "S2", name: "Speaker 2" },
-    ],
-  },
-
-  // -------------------------------------------------------------------------
-  // Local Python TTS – legacy placeholder (superseded by Dia)
-  // -------------------------------------------------------------------------
-  {
-    id: "local-python",
-    name: "Local Python TTS",
-    description: "Run a local Python TTS server (use Dia instead)",
-    requiresApiKey: false,
-    available: false,
-    voices: [],
-  },
 ];
 
 export function getPlatform(id: string): TTSPlatform | undefined {

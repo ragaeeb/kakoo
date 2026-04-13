@@ -31,13 +31,7 @@ const MAX_API_KEY_LENGTH = 512;
 const TTS_TIMEOUT_MS = 30_000;
 const MAX_OUTPUT_BYTES = 200 * 1024 * 1024; // 200 MB
 
-const VALID_PLATFORM_IDS: TTSPlatformId[] = [
-  "google-gemini",
-  "elevenlabs",
-  "macos-say",
-  "local-python",
-  "dia",
-];
+const VALID_PLATFORM_IDS: TTSPlatformId[] = ["google-gemini", "macos-say"];
 
 function sseEvent(type: string, data: Record<string, unknown>): string {
   return `event: ${type}\ndata: ${JSON.stringify(data)}\n\n`;
@@ -196,8 +190,7 @@ export async function POST(req: NextRequest) {
             lineText: line.text.slice(0, 80),
           });
 
-          const ext = speaker.platformId === "elevenlabs" ? "mp3" : "wav";
-          const clipPath = path.join(jobDir, `clip_${String(i).padStart(3, "0")}.${ext}`);
+          const clipPath = path.join(jobDir, `clip_${String(i).padStart(3, "0")}.wav`);
 
           const apiKey = resolveApiKey(speaker.platformId, apiKeys[speaker.platformId]);
 

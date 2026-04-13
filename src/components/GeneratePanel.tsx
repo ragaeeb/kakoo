@@ -268,7 +268,7 @@ export function GeneratePanel({ script, speakers, apiKeys, isReady }: GeneratePa
                 </div>
 
                 {/* Audio player */}
-                <WavePlayer audioUrl={progress.audioUrl} autoPlay />
+                <WavePlayer audioUrl={progress.audioUrl} />
 
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" onClick={reset} className="flex-1">
@@ -380,7 +380,7 @@ export function GeneratePanel({ script, speakers, apiKeys, isReady }: GeneratePa
                   </div>
                 </div>
                 {activeHistoryUrl === entry.audioUrl && (
-                  <WavePlayer audioUrl={entry.audioUrl} autoPlay />
+                  <WavePlayer audioUrl={entry.audioUrl} />
                 )}
               </div>
             ))}

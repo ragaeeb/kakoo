@@ -172,7 +172,7 @@ export function SettingsModal({ onKeysChange, hasKeys }: SettingsModalProps) {
         <DialogHeader>
           <DialogTitle>API Key Settings</DialogTitle>
           <DialogDescription>
-            Configure API keys for TTS providers. Keys are encrypted and stored in your browser.
+            Configure API keys for supported TTS providers. Keys are encrypted and stored in your browser.
           </DialogDescription>
         </DialogHeader>
 
@@ -184,10 +184,6 @@ export function SettingsModal({ onKeysChange, hasKeys }: SettingsModalProps) {
               Set keys as environment variables instead:{" "}
               <code className="font-mono bg-blue-100 dark:bg-blue-900/50 px-1 rounded">
                 GOOGLE_AI_API_KEY
-              </code>
-              ,{" "}
-              <code className="font-mono bg-blue-100 dark:bg-blue-900/50 px-1 rounded">
-                ELEVENLABS_API_KEY
               </code>
               . Server-side env vars take priority over stored keys.
             </p>

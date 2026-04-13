@@ -18,6 +18,10 @@ const MAX_TEXT_LENGTH = 100;
 // In-process cache: key → audio buffer
 const previewCache = new Map<string, Buffer>();
 
+function toResponseBody(buffer: Buffer): Uint8Array<ArrayBuffer> {
+  return Uint8Array.from(buffer);
+}
+
 export async function GET(req: NextRequest) {
   getEnv();
 
@@ -37,8 +41,8 @@ export async function GET(req: NextRequest) {
   const cacheKey = `${platform}:${voiceId}:${text}`;
   const cached = previewCache.get(cacheKey);
   if (cached) {
-    const mimeType = platform === "elevenlabs" ? "audio/mpeg" : "audio/wav";
-    return new Response(cached, {
+    const mimeType = "audio/wav";
+    return new Response(toResponseBody(cached), {
       headers: {
         "Content-Type": mimeType,
         "Cache-Control": "public, max-age=3600",
@@ -48,8 +52,7 @@ export async function GET(req: NextRequest) {
 
   // Synthesise to a temp file
   const tmpDir = os.tmpdir();
-  const ext = platform === "elevenlabs" ? "mp3" : "wav";
-  const tmpFile = path.join(tmpDir, `kakoo-preview-${Date.now()}.${ext}`);
+  const tmpFile = path.join(tmpDir, `kakoo-preview-${Date.now()}.wav`);
 
   try {
     // Resolve API key from env (no client key for preview)
@@ -67,8 +70,8 @@ export async function GET(req: NextRequest) {
     const buf = await fs.readFile(tmpFile);
     previewCache.set(cacheKey, buf);
 
-    const mimeType = platform === "elevenlabs" ? "audio/mpeg" : "audio/wav";
-    return new Response(buf, {
+    const mimeType = "audio/wav";
+    return new Response(toResponseBody(buf), {
       headers: {
         "Content-Type": mimeType,
         "Cache-Control": "public, max-age=3600",

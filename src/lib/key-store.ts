@@ -6,7 +6,7 @@
 // for multi-user or shared-machine contexts — anyone with access to the
 // browser's DevTools can extract the keys. For production deployments on
 // Vercel/Cloudflare, set keys as server-side environment variables instead:
-//   GOOGLE_AI_API_KEY, ELEVENLABS_API_KEY
+//   GOOGLE_AI_API_KEY
 // Server-side env vars take priority over keys stored here.
 // ---------------------------------------------------------------------------
 
@@ -37,12 +37,14 @@ async function deriveKey(): Promise<CryptoKey> {
   );
 }
 
-function bufferToBase64(buf: ArrayBuffer): string {
-  return btoa(String.fromCharCode(...new Uint8Array(buf)));
+function bufferToBase64(buf: ArrayBuffer | Uint8Array<ArrayBuffer>): string {
+  const bytes = buf instanceof ArrayBuffer ? new Uint8Array(buf) : buf;
+  return btoa(String.fromCharCode(...bytes));
 }
 
-function base64ToBuffer(b64: string): Uint8Array {
-  return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+function base64ToBytes(b64: string): Uint8Array<ArrayBuffer> {
+  const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+  return new Uint8Array(bytes);
 }
 
 export class KeyStore {
@@ -80,9 +82,9 @@ export class KeyStore {
       const cryptoKey = await deriveKey();
 
       const plaintext = await window.crypto.subtle.decrypt(
-        { name: "AES-GCM", iv: base64ToBuffer(iv) },
+        { name: "AES-GCM", iv: base64ToBytes(iv) },
         cryptoKey,
-        base64ToBuffer(ct),
+        base64ToBytes(ct),
       );
 
       return JSON.parse(new TextDecoder().decode(plaintext)) as Record<string, string>;

@@ -27,7 +27,9 @@ function createDefaultSpeaker(index: number): Speaker {
   const displayName =
     index < friendlyNames.length ? friendlyNames[index] : `Speaker ${index + 1}`;
 
-  const defaultPlatform = PLATFORMS.find((p) => p.available);
+  const defaultPlatform =
+    PLATFORMS.find((p) => p.id === "macos-say" && p.available) ??
+    PLATFORMS.find((p) => p.available);
   const defaultVoice = defaultPlatform?.voices[index % (defaultPlatform?.voices.length ?? 1)];
 
   return {
